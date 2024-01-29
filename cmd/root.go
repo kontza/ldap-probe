@@ -36,8 +36,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		zerolog.TimeFieldFormat = time.StampMilli
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05.000"})
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05.000"})
 		return nil
 	}
 
