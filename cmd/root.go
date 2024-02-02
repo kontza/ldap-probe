@@ -18,9 +18,10 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:     "ldap-probe",
+	Use:     "ldap-probe [flags] SEARCH_TERM [SEARCH_TERM ...]",
 	Short:   "Make an LDAP search",
 	Version: "v1.0.0",
+	Args:    cobra.MinimumNArgs(1),
 	Run:     rootRunner,
 }
 
@@ -49,7 +50,10 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolP("verbose", "V", false, "Show verbose logging")
+	rootCmd.Flags().BoolP("full", "f", false, "Show full LDAP response")
+	viper.BindPFlag("verbose", rootCmd.Flags().Lookup("verbose"))
+	viper.BindPFlag("full", rootCmd.Flags().Lookup("full"))
 }
 
 // initConfig reads in config file and ENV variables if set.

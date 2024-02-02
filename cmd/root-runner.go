@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/spf13/cobra"
@@ -11,8 +13,10 @@ import (
 )
 
 func rootRunner(cmd *cobra.Command, args []string) {
-	if len(os.Args) < 2 {
-		log.Fatal().Msg("Gimme a search term to work on!")
+	showFull := viper.GetBool("full")
+	verbose := viper.GetBool("verbose")
+	if verbose {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 	dialUrl := viper.GetString("dial-url")
 	log.Info().Str("dial URL", dialUrl).Msg("Configured")
@@ -37,24 +41,49 @@ func rootRunner(cmd *cobra.Command, args []string) {
 
 	baseDn := viper.GetString("base-dn")
 	log.Info().Str("base DN", baseDn).Msg("Configured")
-	subQuery := fmt.Sprintf("(&(objectclass=user)(|(sAMAccountName=%s)(userPrincipalName=%s)))", os.Args[1], os.Args[1])
-	log.Info().Str("sub query", subQuery).Msg("Using")
-	searchRequest := ldap.NewSearchRequest(
-		baseDn,
-		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		subQuery,
-		[]string{"dn", "cn", "phone"},
-		nil,
-	)
+	for _, searchTerm := range args {
+		subQuery := fmt.Sprintf("(&(objectclass=user)(|(sAMAccountName=%s)(userPrincipalName=%s)))", searchTerm, searchTerm)
+		log.Info().Str("sub query", subQuery).Msg("Using")
+		searchRequest := ldap.NewSearchRequest(
+			baseDn,
+			ldap.ScopeWholeSubtree,
+			ldap.NeverDerefAliases,
+			0,
+			0,
+			false,
+			subQuery,
+			[]string{"dn", "cn", "phone"},
+			nil,
+		)
 
-	sr, err := l.Search(searchRequest)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Search failed due to")
-	}
+		if showFull {
+			searchRequest.Attributes = []string{"*"}
+		}
 
-	for _, entry := range sr.Entries {
-		log.Info().Msg("Result:")
-		log.Info().Str("  DN", entry.DN).Send()
-		log.Info().Interface("  CN", entry.GetAttributeValue("cn")).Send()
+		if verbose {
+			log.Debug().Strs("Attributes", searchRequest.Attributes).Msg("Search")
+			l.Debug.Enable(true)
+		}
+
+		sr, err := l.Search(searchRequest)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Search failed due to")
+		}
+
+		for _, entry := range sr.Entries {
+			log.Info().Msg("Result:")
+			log.Info().Str("  DN", entry.DN).Send()
+			for _, attr := range entry.Attributes {
+				prefix := log.Info().Interface("  Name", attr.Name)
+				if len(attr.Values) > 1 {
+					prefix.Str("Values", "...").Send()
+					for _, value := range attr.Values {
+						log.Info().Interface("    ", value).Send()
+					}
+				} else {
+					prefix.Interface("Values", attr.Values).Send()
+				}
+			}
+		}
 	}
 }
