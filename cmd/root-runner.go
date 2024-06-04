@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -27,14 +28,18 @@ func rootRunner(cmd *cobra.Command, args []string) {
 	defer l.Close()
 
 	// Read password from ~/.adpass
-	adPass, err := os.ReadFile(os.ExpandEnv("$HOME/.adpass"))
-	if err != nil {
-		log.Fatal().Err(err).Msg("ReadFile failed due to")
+	adPassStr := viper.GetString("ad-password")
+	if strings.TrimSpace(adPassStr) == "" {
+		adPass, err := os.ReadFile(os.ExpandEnv("$HOME/.adpass"))
+		if err != nil {
+			log.Fatal().Err(err).Msg("ReadFile failed due to")
+		}
+		adPassStr = string(adPass)
 	}
 
 	bindDn := viper.GetString("bind-dn")
 	log.Info().Str("bind DN", bindDn).Msg("Configured")
-	err = l.Bind(bindDn, string(adPass))
+	err = l.Bind(bindDn, adPassStr)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Bind failed due to")
 	}
