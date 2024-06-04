@@ -19,6 +19,18 @@ func rootRunner(cmd *cobra.Command, args []string) {
 	if verbose {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
+
+	// Figure out the password
+	adPassStr := viper.GetString("ad-password")
+	if strings.TrimSpace(adPassStr) == "" {
+		log.Info().Msg("No password found in configuration, trying out $HOME/.adpass")
+		adPass, err := os.ReadFile(os.ExpandEnv("$HOME/.adpass"))
+		if err != nil {
+			log.Fatal().Err(err).Msg("ReadFile failed due to")
+		}
+		adPassStr = string(adPass)
+	}
+
 	dialUrl := viper.GetString("dial-url")
 	log.Info().Str("dial URL", dialUrl).Msg("Configured")
 	l, err := ldap.DialURL(dialUrl)
@@ -26,16 +38,6 @@ func rootRunner(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("DialURL failed due to")
 	}
 	defer l.Close()
-
-	// Read password from ~/.adpass
-	adPassStr := viper.GetString("ad-password")
-	if strings.TrimSpace(adPassStr) == "" {
-		adPass, err := os.ReadFile(os.ExpandEnv("$HOME/.adpass"))
-		if err != nil {
-			log.Fatal().Err(err).Msg("ReadFile failed due to")
-		}
-		adPassStr = string(adPass)
-	}
 
 	bindDn := viper.GetString("bind-dn")
 	log.Info().Str("bind DN", bindDn).Msg("Configured")
